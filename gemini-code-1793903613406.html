@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1994 X HDB CTA Lineup & Regear System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    .bg-caller { background-color: #0891b2 !important; border-color: #06b6d4 !important; }
+    .bg-tank { background-color: #4c1d95 !important; border-color: #6d28d9 !important; }
+    .bg-dps { background-color: #78350f !important; border-color: #b45309 !important; }
+    .bg-support { background-color: #b45309 !important; border-color: #f59e0b !important; }
+    .bg-healer { background-color: #064e3b !important; border-color: #059669 !important; }
+    .bg-flex { background-color: #581c87 !important; border-color: #7e22ce !important; }
+  </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+    
+    <!-- 顶栏：标题 + UTC 班次 + 页面切换 -->
+    <div class="flex flex-col lg:flex-row justify-between items-center gap-4 bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl">
+      <div>
+        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-cyan-400 to-emerald-400">
+          <i class="fa-solid fa-shield-halved mr-2"></i>1994 X HDB
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">支持 12/14 UTC 分班次报名与 Regear 赔偿结算</p>
+      </div>
+
+      <!-- 控制区 -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- UTC 班次切换 -->
+        <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
+          <button id="utc-12" onclick="switchUTC('12')" class="px-3.5 py-1.5 rounded-md font-bold text-xs bg-amber-500 text-slate-950 shadow">
+            12 UTC 班次
+          </button>
+          <button id="utc-14" onclick="switchUTC('14')" class="px-3.5 py-1.5 rounded-md font-bold text-xs text-slate-400 hover:text-white">
+            14 UTC 班次
+          </button>
+        </div>
+
+        <!-- 功能切换 -->
+        <div class="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
+          <button id="tab-main" onclick="switchTab('main')" class="px-3 py-1.5 rounded-md font-bold text-xs bg-cyan-600 text-white">
+            <i class="fa-solid fa-users mr-1"></i>阵容报名
+          </button>
+          <button id="tab-regear1" onclick="switchTab('regear1')" class="px-3 py-1.5 rounded-md font-bold text-xs text-slate-400 hover:text-white">
+            <i class="fa-solid fa-rotate-left mr-1"></i>12 UTC REGEAR
+          </button>
+          <button id="tab-regear2" onclick="switchTab('regear2')" class="px-3 py-1.5 rounded-md font-bold text-xs text-slate-400 hover:text-white">
+            <i class="fa-solid fa-rotate-left mr-1"></i>14 UTC REGEAR
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 状态指示与右上角金额汇总 Banner -->
+    <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <span id="utc-badge" class="px-3 py-1 bg-amber-500/20 text-amber-300 font-extrabold border border-amber-500/40 rounded-lg text-sm">
+          当前班次：12 UTC
+        </span>
+        <span id="banner-text" class="text-slate-300 text-sm">点击卡片即可输入玩家 ID 报名入坑</span>
+      </div>
+
+      <!-- 右上角 Regear 总死亡额统计 -->
+      <div id="regear-total-box" class="hidden flex items-center gap-4 bg-emerald-950/80 border border-emerald-600/80 px-5 py-2.5 rounded-lg">
+        <div>
+          <div class="text-xs text-emerald-300/80 uppercase font-semibold">本场总死亡次数</div>
+          <div class="text-lg font-black text-emerald-400" id="total-deaths-val">0 次</div>
+        </div>
+        <div class="h-8 w-px bg-emerald-700/60"></div>
+        <div>
+          <div class="text-xs text-emerald-300/80 uppercase font-semibold">本场赔付总金额</div>
+          <div class="text-xl font-black text-amber-300" id="total-money-val">0 银币</div>
+        </div>
+      </div>
+
+      <button onclick="clearAllData()" class="px-3 py-1.5 bg-red-900/40 hover:bg-red-800 border border-red-700 text-red-200 text-xs rounded transition-all">
+        <i class="fa-solid fa-trash-can mr-1"></i>清空当前班次数据
+      </button>
+    </div>
+
+    <!-- 主要坑位表格渲染 -->
+    <div id="app-container" class="space-y-8"></div>
+
+  </div>
+
+  <!-- 报名弹窗 Modal -->
+  <div id="modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-800 border border-slate-600 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <h3 class="text-xl font-bold text-amber-400 border-b border-slate-700 pb-2" id="modal-title">坑位报名</h3>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">玩家 ID</label>
+          <input type="text" id="input-name" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-white focus:outline-none focus:border-cyan-500" placeholder="例如：Choo556">
+        </div>
+
+        <div id="weapon-select-box" class="hidden">
+          <label class="block text-xs font-semibold text-amber-400 uppercase mb-1">选择使用武器</label>
+          <select id="input-weapon" class="w-full bg-slate-900 border border-amber-600/60 rounded p-2.5 text-amber-200 focus:outline-none">
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">备注 (例如：可切装/缺药水)</label>
+          <input type="text" id="input-note" class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-white focus:outline-none focus:border-cyan-500" placeholder="可不填">
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4 border-t border-slate-700">
+        <button onclick="closeModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-semibold rounded">取消</button>
+        <button onclick="saveSlot()" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold rounded">确认保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DPS_WEAPONS = [
+      "Spike刺拳 (平10)", "Realmbreaker裂域斧", "Carrioncaller噬魂斧", "Runic 符文大剑",
+      "Permafrost 冰波法杖", "Dawnsong 晨曦火", "Wildfire 野火法杖", "Brimstone 陨石火",
+      "Longbow 长弓", "Mistpiercer 穿雾弓", "Siegebow 聪明炮", "Energy Crossbow 能量弩",
+      "Clarent 澄清剑", "Bridled Passion 狂热匕首", "Bloodletter 破血匕首", "Galatine 双圣剑",
+      "Demonfang 恶魔牙", "Shadowcaller 影召法杖"
+    ];
+
+    const COMP_CATEGORIES = [
+      { 
+        title: "CALLER", 
+        colorClass: "bg-caller", 
+        slots: [
+          { id: "c1", defaultReq: "CALLER 1" },
+          { id: "c2", defaultReq: "CALLER 2" }
+        ] 
+      },
+      {
+        title: "DTANK 防坦", 
+        colorClass: "bg-tank",
+        slots: [
+          { id: "t1", defaultReq: "單手錘/風暴錘/雷霆錘/正手/釘錘" },
+          { id: "t2", defaultReq: "單手錘/風暴錘/雷霆錘/正手/釘錘" },
+          { id: "t3", defaultReq: "Incubus縮小" }
+        ]
+      },
+      {
+        title: "DPS", 
+        colorClass: "bg-dps",
+        slots: [
+          { id: "d1", defaultReq: "Spike刺拳 (平10)" },
+          { id: "d2", defaultReq: "Realmbreaker裂域斧" },
+          { id: "d3", defaultReq: "DPS 自由位 1", isDpsSelect: true },
+          { id: "d4", defaultReq: "DPS 自由位 2", isDpsSelect: true },
+          { id: "d5", defaultReq: "DPS 自由位 3", isDpsSelect: true },
+          { id: "d6", defaultReq: "DPS 自由位 4", isDpsSelect: true },
+          { id: "d7", defaultReq: "DPS 自由位 5", isDpsSelect: true },
+          { id: "d8", defaultReq: "DPS 自由位 6", isDpsSelect: true }
+        ]
+      },
+      {
+        title: "Support 辅助/破防",
+        colorClass: "bg-support",
+        slots: [
+          { id: "s1", defaultReq: "Spirithunter索魂/Carving斷水" },
+          { id: "s2", defaultReq: "shadowcaller昭穎" },
+          { id: "s3", defaultReq: "Corrupting Staff生咒" }
+        ]
+      },
+      {
+        title: "HEALER 奶妈", 
+        colorClass: "bg-healer",
+        slots: [
+          { id: "h1", defaultReq: "Hallowfall版甲堕神" },
+          { id: "h2", defaultReq: "Hallowfall堕神" },
+          { id: "h3", defaultReq: "Fallen堕落法杖" },
+          { id: "h4", defaultReq: "水晶奶" }
+        ]
+      },
+      {
+        title: "FLEX 补位", 
+        colorClass: "bg-flex",
+        slots: [
+          { id: "f1", defaultReq: "补位坑 1", isDpsSelect: true },
+          { id: "f2", defaultReq: "补位坑 2", isDpsSelect: true },
+          { id: "f3", defaultReq: "补位坑 3", isDpsSelect: true },
+          { id: "f4", defaultReq: "补位坑 4", isDpsSelect: true },
+          { id: "f5", defaultReq: "补位坑 5", isDpsSelect: true }
+        ]
+      }
+    ];
+
+    let currentUTC = '12';
+    let currentTab = 'main';
+    let activeSlotId = null;
+
+    function getStoreKey(type) {
+      return `albion_${currentUTC}_${type}`;
+    }
+
+    function getData(type) {
+      return JSON.parse(localStorage.getItem(getStoreKey(type)) || '{}');
+    }
+
+    function saveData(type, data) {
+      localStorage.setItem(getStoreKey(type), JSON.stringify(data));
+    }
+
+    function switchUTC(utc) {
+      currentUTC = utc;
+      document.getElementById('utc-12').className = utc === '12' ? 'px-3.5 py-1.5 rounded-md font-bold text-xs bg-amber-500 text-slate-950 shadow' : 'px-3.5 py-1.5 rounded-md font-bold text-xs text-slate-400 hover:text-white';
+      document.getElementById('utc-14').className = utc === '14' ? 'px-3.5 py-1.5 rounded-md font-bold text-xs bg-amber-500 text-slate-950 shadow' : 'px-3.5 py-1.5 rounded-md font-bold text-xs text-slate-400 hover:text-white';
+      document.getElementById('utc-badge').innerText = `当前班次：${utc} UTC`;
+      renderApp();
+    }
+
+    function switchTab(tabName) {
+      currentTab = tabName;
+      
+      if(tabName === 'regear1') switchUTC('12');
+      if(tabName === 'regear2') switchUTC('14');
+
+      ['main', 'regear1', 'regear2'].forEach(t => {
+        const btn = document.getElementById(`tab-${t}`);
+        btn.className = t === tabName ? "px-3 py-1.5 rounded-md font-bold text-xs bg-cyan-600 text-white shadow" : "px-3 py-1.5 rounded-md font-bold text-xs text-slate-400 hover:text-white";
+      });
+
+      const regearTotalBox = document.getElementById('regear-total-box');
+      if(tabName === 'main') {
+        regearTotalBox.classList.add('hidden');
+        document.getElementById('banner-text').innerText = '模式：【阵容报名】点击卡片即可填入 ID 与武器';
+      } else {
+        regearTotalBox.classList.remove('hidden');
+        document.getElementById('banner-text').innerText = `模式：【${currentUTC} UTC REGEAR】名字自动同步，输入死亡次数与单价计算金额`;
+      }
+
+      renderApp();
+    }
+
+    function renderApp() {
+      const container = document.getElementById('app-container');
+      container.innerHTML = '';
+
+      const mainData = getData('main');
+      const regearData = getData(currentTab);
+
+      let grandTotalDeaths = 0;
+      let grandTotalMoney = 0;
+
+      COMP_CATEGORIES.forEach(cat => {
+        const catBox = document.createElement('div');
+        catBox.className = 'space-y-3';
+
+        let filledCount = 0;
+        cat.slots.forEach(s => { if(mainData[s.id]?.name) filledCount++; });
+
+        catBox.innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+            <h2 class="text-lg font-bold text-slate-200 flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full ${cat.colorClass.replace('bg-', 'bg-')} inline-block"></span>
+              ${cat.title}
+            </h2>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+              ${filledCount} / ${cat.slots.length} 人填坑
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="grid-${cat.title.replace(/[^a-zA-Z0-9]/g, '')}"></div>
+        `;
+
+        container.appendChild(catBox);
+        const grid = catBox.querySelector('.grid');
+
+        cat.slots.forEach(slot => {
+          const slotMain = mainData[slot.id] || {};
+          const slotRg = regearData[slot.id] || { deaths: 0, price: 0 };
+
+          const weaponName = slotMain.weapon || slot.defaultReq;
+          const deaths = parseInt(slotRg.deaths || 0);
+          const price = parseInt(slotRg.price || 0);
+          const totalCost = deaths * price;
+
+          if(currentTab !== 'main') {
+            grandTotalDeaths += deaths;
+            grandTotalMoney += totalCost;
+          }
+
+          const card = document.createElement('div');
+          card.className = `p-4 rounded-xl border-2 transition-all flex flex-col justify-between shadow-lg ${cat.colorClass} min-h-[120px]`;
+
+          if(currentTab === 'main') {
+            card.innerHTML = `
+              <div>
+                <div class="text-xs font-bold text-amber-200/90 truncate"><i class="fa-solid fa-crosshairs text-[10px] mr-1"></i>${weaponName}</div>
+                <div class="text-lg font-extrabold text-white mt-1 truncate">
+                  ${slotMain.name ? `<i class="fa-solid fa-user text-sm mr-1"></i>${slotMain.name}` : '<span class="text-slate-300/60 italic font-normal text-sm">点击坑位报名...</span>'}
+                </div>
+                ${slotMain.note ? `<div class="text-xs text-slate-200/80 mt-1 truncate"><i class="fa-solid fa-pen-to-square text-[10px] mr-1"></i>${slotMain.note}</div>` : ''}
+              </div>
+              <div class="mt-3 pt-2 border-t border-white/10 text-right">
+                <button onclick="openModal('${slot.id}')" class="text-xs font-bold text-white hover:underline">
+                  ${slotMain.name ? '修改/退坑' : '报名入坑'}
+                </button>
+              </div>
+            `;
+          } else {
+            card.innerHTML = `
+              <div>
+                <div class="text-xs font-bold text-amber-200/90 truncate"><i class="fa-solid fa-crosshairs text-[10px] mr-1"></i>${weaponName}</div>
+                <div class="text-lg font-extrabold text-white mt-0.5 truncate">
+                  ${slotMain.name ? `<i class="fa-solid fa-user text-sm mr-1"></i>${slotMain.name}` : '<span class="text-slate-300/50 italic text-sm">空坑位</span>'}
+                </div>
+              </div>
+
+              <div class="mt-2 pt-2 border-t border-white/10 space-y-1.5">
+                <div class="grid grid-cols-2 gap-1 text-xs">
+                  <div>
+                    <span class="text-[10px] text-slate-300 block">死亡次数</span>
+                    <input type="number" min="0" value="${deaths}" onchange="updateRegear('${slot.id}', 'deaths', this.value)" 
+                           class="w-full bg-slate-900/90 border border-slate-700 rounded px-1.5 py-0.5 text-white font-bold text-xs focus:outline-none">
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-300 block">一套单价</span>
+                    <input type="number" min="0" step="100000" value="${price}" onchange="updateRegear('${slot.id}', 'price', this.value)" 
+                           class="w-full bg-slate-900/90 border border-slate-700 rounded px-1.5 py-0.5 text-amber-300 font-bold text-xs focus:outline-none">
+                  </div>
+                </div>
+                
+                <div class="flex justify-between items-center text-xs pt-1 font-bold">
+                  <span class="text-slate-200 text-[11px]">个人总额:</span>
+                  <span class="${totalCost > 0 ? 'text-amber-300 font-extrabold' : 'text-slate-400'}">${totalCost.toLocaleString()} 银币</span>
+                </div>
+              </div>
+            `;
+          }
+
+          grid.appendChild(card);
+        });
+      });
+
+      if(currentTab !== 'main') {
+        document.getElementById('total-deaths-val').innerText = `${grandTotalDeaths} 次`;
+        document.getElementById('total-money-val').innerText = `${grandTotalMoney.toLocaleString()} 银币`;
+      }
+    }
+
+    function updateRegear(slotId, field, val) {
+      const data = getData(currentTab);
+      if(!data[slotId]) data[slotId] = { deaths: 0, price: 0 };
+      data[slotId][field] = parseInt(val) || 0;
+      saveData(currentTab, data);
+      renderApp();
+    }
+
+    function openModal(slotId) {
+      activeSlotId = slotId;
+      let slotConfig;
+      COMP_CATEGORIES.forEach(c => {
+        const found = c.slots.find(s => s.id === slotId);
+        if(found) slotConfig = found;
+      });
+
+      const mainData = getData('main');
+      const slotData = mainData[slotId] || {};
+
+      document.getElementById('input-name').value = slotData.name || '';
+      document.getElementById('input-note').value = slotData.note || '';
+
+      const weaponSelectBox = document.getElementById('weapon-select-box');
+      const weaponSelect = document.getElementById('input-weapon');
+
+      if(slotConfig.isDpsSelect) {
+        weaponSelectBox.classList.remove('hidden');
+        weaponSelect.innerHTML = DPS_WEAPONS.map(w => `<option value="${w}" ${slotData.weapon === w ? 'selected' : ''}>${w}</option>`).join('');
+      } else {
+        weaponSelectBox.classList.add('hidden');
+      }
+
+      document.getElementById('modal').classList.remove('hidden');
+      document.getElementById('modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      document.getElementById('modal').classList.remove('flex');
+    }
+
+    function saveSlot() {
+      const mainData = getData('main');
+      const name = document.getElementById('input-name').value.trim();
+      const note = document.getElementById('input-note').value.trim();
+      const weaponSelectBox = document.getElementById('weapon-select-box');
+      let weapon = '';
+
+      if(!weaponSelectBox.classList.contains('hidden')) {
+        weapon = document.getElementById('input-weapon').value;
+      }
+
+      if(!name) {
+        delete mainData[activeSlotId];
+      } else {
+        mainData[activeSlotId] = { name, note, weapon };
+      }
+
+      saveData('main', mainData);
+      closeModal();
+      renderApp();
+    }
+
+    function clearAllData() {
+      if(confirm(`确定要清空 ${currentUTC} UTC 班次的报名与 Regear 数据吗？`)) {
+        localStorage.removeItem(getStoreKey('main'));
+        localStorage.removeItem(getStoreKey('regear1'));
+        localStorage.removeItem(getStoreKey('regear2'));
+        renderApp();
+      }
+    }
+
+    renderApp();
+  </script>
+</body>
+</html>
